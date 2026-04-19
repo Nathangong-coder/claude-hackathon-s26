@@ -1,0 +1,73 @@
+{
+  "diagnosis_or_reason": "Cellulitis (skin infection) of the right lower leg",
+  "medications": [
+    {
+      "name": "Amoxicillin",
+      "dose": "500 mg",
+      "frequency_text": "Twice daily for 7 days",
+      "notes": "Take with food",
+      "source_quote": "Amoxicillin 500 mg by mouth twice daily"
+    },
+    {
+      "name": "Acetaminophen",
+      "dose": "500 mg",
+      "frequency_text": "Every 6 hours as needed",
+      "notes": "For pain or fever",
+      "source_quote": "Acetaminophen 500 mg every 6 hours as needed"
+    }
+  ],
+  "follow_ups": [
+    {
+      "type": "Primary care follow-up",
+      "within_text": "Within 2–3 days",
+      "source_quote": "Schedule a follow-up visit with your primary care provider within 2–3 days"
+    }
+  ],
+  "red_flags": [
+    {
+      "text": "Fever above 101.5°F",
+      "severity_hint": "urgent",
+      "source_quote": "fever above 101.5°F"
+    },
+    {
+      "text": "Rapidly spreading redness or red streaks up the leg",
+      "severity_hint": "urgent",
+      "source_quote": "rapidly spreading redness"
+    },
+    {
+      "text": "Severe pain or swelling despite medications",
+      "severity_hint": "contact",
+      "source_quote": "worsening pain/swelling despite medications"
+    }
+  ],
+  "activity": {
+    "restrictions": ["No lifting over 10 lbs for 3 days", "Avoid prolonged standing today"],
+    "allowances": ["Short walks if comfortable", "Elevate leg when resting"]
+  },
+  "diet": {
+    "do": ["Drink plenty of fluids"],
+    "avoid": ["Alcohol while on antibiotics"]
+  },
+  "plain_language_summary": "You have a skin infection on your lower leg. Take antibiotics exactly as prescribed, rest with your leg elevated, and follow up with your doctor in a few days. Get urgent care if you develop a high fever, spreading redness, or worse pain.",
+  "todays_checklist": [
+    {
+      "id": "1",
+      "label": "Take amoxicillin with breakfast and dinner",
+      "category": "medication"
+    },
+    {
+      "id": "2",
+      "label": "Elevate leg when resting",
+      "category": "activity"
+    },
+    {
+      "id": "3",
+      "label": "Drink water throughout the day",
+      "category": "diet"
+    }
+  ],
+  "medication_schedule_today": [
+    { "time_local": "8:00 AM", "label": "Amoxicillin 500 mg", "med_id": "amox-1" },
+    { "time_local": "8:00 PM", "label": "Amoxicillin 500 mg", "med_id": "amox-2" }
+  ]
+}
