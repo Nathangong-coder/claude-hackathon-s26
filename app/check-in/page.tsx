@@ -1,278 +1,173 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import type { CarePlan, CheckInResponse, Symptoms } from "@/lib/types/care-plan";
+import { useEffect, useRef, useState } from "react";
+import type { CarePlan } from "@/lib/types/care-plan";
 import { loadCarePlan } from "@/lib/care-plan-storage";
-import { demoCheckIn } from "@/lib/demo-checkin";
 import { Disclaimer } from "@/components/Disclaimer";
 
-const defaultSymptoms: Symptoms = {
-  pain: 2,
-  fever: "none",
-  swelling: "none",
-  shortness_of_breath: "none",
-  nausea: "none",
-  worse_overall: false,
-};
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+}
 
-export default function CheckInPage() {
+const SUGGESTIONS = [
+  "What should I watch out for?",
+  "Can I take ibuprofen with my medication?",
+  "When should I call my doctor?",
+  "What foods should I avoid?",
+];
+
+export default function ChatPage() {
   const [plan, setPlan] = useState<CarePlan | null>(null);
-  const [symptoms, setSymptoms] = useState<Symptoms>(defaultSymptoms);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<CheckInResponse | null>(null);
-  const [note, setNote] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [streaming, setStreaming] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setPlan(loadCarePlan());
   }, []);
 
-  async function submit() {
-    if (!plan) return;
-    setLoading(true);
-    setNote(null);
-    setResult(null);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, streaming]);
+
+  async function send(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || streaming) return;
+
+    const userMsg: Message = { role: "user", content: trimmed };
+    const next = [...messages, userMsg];
+    setMessages(next);
+    setInput("");
+    setStreaming(true);
+
+    const assistantMsg: Message = { role: "assistant", content: "" };
+    setMessages([...next, assistantMsg]);
+
     try {
-      const res = await fetch("/api/check-in", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          symptoms,
-          red_flags: plan.red_flags,
-          care_plan_summary: plan.plain_language_summary,
-        }),
+        body: JSON.stringify({ messages: next, carePlan: plan }),
       });
-      const data = await res.json();
-      if (res.ok) {
-        setResult(data as CheckInResponse);
-        return;
+
+      if (!res.ok || !res.body) {
+        throw new Error("Request failed");
       }
-      if (res.status === 503) {
-        setNote("API unavailable — showing demo triage logic.");
-        setResult(demoCheckIn(symptoms, plan));
-        return;
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        accumulated += decoder.decode(value, { stream: true });
+        setMessages([...next, { role: "assistant", content: accumulated }]);
       }
-      throw new Error(data.error ?? "Check-in failed");
-    } catch (e) {
-      setNote(
-        e instanceof Error
-          ? `${e.message} — showing demo triage.`
-          : "Error — showing demo triage."
-      );
-      setResult(demoCheckIn(symptoms, plan));
+    } catch {
+      setMessages([
+        ...next,
+        { role: "assistant", content: "Sorry, something went wrong. Please try again." },
+      ]);
     } finally {
-      setLoading(false);
+      setStreaming(false);
     }
   }
 
-  if (!plan) {
-    return (
-      <main className="flex flex-1 flex-col justify-center px-5 pb-8 pt-8">
-        <h1 className="text-2xl font-semibold text-stone-900">Check-in</h1>
-        <p className="mt-3 text-stone-600">
-          Load a care plan first so we can compare your symptoms to your
-          discharge warning signs.
-        </p>
-        <Link
-          href="/upload"
-          className="mt-8 inline-flex min-h-12 items-center justify-center rounded-2xl bg-teal-700 px-5 font-medium text-white"
-        >
-          Add discharge instructions
-        </Link>
-        <Disclaimer />
-      </main>
-    );
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send(input);
+    }
   }
 
   return (
-    <main className="flex flex-1 flex-col px-5 pb-8 pt-8">
-      <h1 className="text-2xl font-semibold text-stone-900">How are you feeling?</h1>
-      <p className="mt-2 text-sm text-stone-600">
-        Quick check-in. We&apos;ll compare this to the warning signs from your
-        paperwork.
-      </p>
-
-      <div className="mt-8 space-y-6">
-        <div>
-          <label className="text-sm font-medium text-stone-800" htmlFor="pain">
-            Pain (0–10)
-          </label>
-          <div className="mt-2 flex items-center gap-4">
-            <input
-              id="pain"
-              type="range"
-              min={0}
-              max={10}
-              value={symptoms.pain}
-              onChange={(e) =>
-                setSymptoms((s) => ({ ...s, pain: Number(e.target.value) }))
-              }
-              className="w-full accent-teal-700"
-            />
-            <span className="w-8 text-right text-sm font-medium text-stone-800">
-              {symptoms.pain}
-            </span>
-          </div>
-        </div>
-
-        <SelectField
-          label="Fever"
-          value={symptoms.fever}
-          onChange={(fever) => setSymptoms((s) => ({ ...s, fever }))}
-          options={[
-            { value: "none", label: "None / not measured" },
-            { value: "low", label: "Low-grade" },
-            { value: "high", label: "High / shaking chills" },
-            { value: "unknown", label: "Not sure" },
-          ]}
-        />
-
-        <SelectField
-          label="Swelling"
-          value={symptoms.swelling}
-          onChange={(swelling) => setSymptoms((s) => ({ ...s, swelling }))}
-          options={[
-            { value: "none", label: "None" },
-            { value: "mild", label: "Mild" },
-            { value: "moderate", label: "Moderate" },
-            { value: "severe", label: "Severe" },
-          ]}
-        />
-
-        <SelectField
-          label="Shortness of breath"
-          value={symptoms.shortness_of_breath}
-          onChange={(shortness_of_breath) =>
-            setSymptoms((s) => ({ ...s, shortness_of_breath }))
-          }
-          options={[
-            { value: "none", label: "None" },
-            { value: "mild", label: "Mild" },
-            { value: "moderate", label: "Moderate" },
-            { value: "severe", label: "Severe" },
-          ]}
-        />
-
-        <SelectField
-          label="Nausea"
-          value={symptoms.nausea}
-          onChange={(nausea) => setSymptoms((s) => ({ ...s, nausea }))}
-          options={[
-            { value: "none", label: "None" },
-            { value: "mild", label: "Mild" },
-            { value: "moderate", label: "Moderate" },
-            { value: "severe", label: "Severe" },
-          ]}
-        />
-
-        <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-          <input
-            type="checkbox"
-            className="size-5 rounded border-stone-300 text-teal-700"
-            checked={symptoms.worse_overall}
-            onChange={(e) =>
-              setSymptoms((s) => ({ ...s, worse_overall: e.target.checked }))
-            }
-          />
-          <span className="text-sm text-stone-800">
-            Overall, I feel worse than yesterday
-          </span>
-        </label>
+    <main className="flex flex-1 flex-col pt-8">
+      <div className="px-5">
+        <p className="text-sm text-stone-500">Assistant</p>
+        <h1 className="mt-1 text-2xl font-semibold text-stone-900">Ask anything</h1>
+        {plan && (
+          <p className="mt-1 text-sm text-stone-500">{plan.diagnosis_or_reason}</p>
+        )}
       </div>
 
-      <button
-        type="button"
-        onClick={submit}
-        disabled={loading}
-        className="mt-8 min-h-12 rounded-2xl bg-teal-700 px-5 font-medium text-white shadow-sm hover:bg-teal-800 disabled:opacity-60"
-      >
-        {loading ? "Getting guidance…" : "Get guidance"}
-      </button>
-
-      {note ? (
-        <p className="mt-4 text-sm text-stone-600" role="status">
-          {note}
-        </p>
-      ) : null}
-
-      {result ? (
-        <section
-          className={`mt-8 rounded-2xl border p-4 shadow-sm ${
-            result.tier === "urgent"
-              ? "border-red-200 bg-red-50"
-              : result.tier === "provider"
-                ? "border-amber-200 bg-amber-50"
-                : "border-teal-200 bg-teal-50"
-          }`}
-        >
-          <p className="text-xs font-semibold uppercase tracking-wide text-stone-600">
-            Suggested next step
-          </p>
-          <h2 className="mt-1 text-lg font-semibold text-stone-900">
-            {result.warning}
-          </h2>
-          <p className="mt-2 text-sm font-medium capitalize text-stone-800">
-            Level: {result.tier === "home"
-              ? "Continue home care"
-              : result.tier === "provider"
-                ? "Contact your provider"
-                : "Seek urgent care / emergency if severe"}
-          </p>
-          <p className="mt-3 text-sm leading-relaxed text-stone-800">
-            {result.rationale}
-          </p>
-          <div className="mt-4 rounded-xl bg-white/70 p-3 text-sm text-stone-800">
-            <p className="font-medium text-stone-900">Why we&apos;re flagging this</p>
-            <p className="mt-1">{result.reason_for_concern}</p>
-            <p className="mt-3 text-xs text-stone-600">
-              From your instructions: &quot;{result.triggering_excerpt}&quot;
+      <div className="mt-4 flex-1 overflow-y-auto px-5 pb-4">
+        {messages.length === 0 && (
+          <div className="mt-2 space-y-2">
+            <p className="text-sm text-stone-500">
+              {plan
+                ? "Ask me anything about your recovery, medications, or care plan."
+                : "Ask me general post-discharge questions. Upload discharge instructions for personalized answers."}
             </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => send(s)}
+                  className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs text-stone-700 shadow-sm hover:bg-stone-50"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="mt-4 rounded-xl border border-stone-200 bg-white p-3">
-            <p className="text-xs font-semibold uppercase text-stone-500">
-              Share with caregiver / clinic
-            </p>
-            <p className="mt-2 whitespace-pre-wrap text-sm text-stone-800">
-              {result.shareable_text}
-            </p>
-          </div>
-        </section>
-      ) : null}
+        )}
 
-      <Disclaimer />
+        <div className="space-y-4">
+          {messages.map((msg, i) => (
+            <div
+              key={i}
+              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                  msg.role === "user"
+                    ? "bg-teal-700 text-white"
+                    : "border border-stone-200 bg-white text-stone-800 shadow-sm"
+                }`}
+              >
+                {msg.content || (
+                  <span className="inline-flex gap-1">
+                    <span className="animate-bounce">·</span>
+                    <span className="animate-bounce [animation-delay:0.15s]">·</span>
+                    <span className="animate-bounce [animation-delay:0.3s]">·</span>
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div ref={bottomRef} />
+      </div>
+
+      <div className="border-t border-stone-200 bg-white px-4 pb-6 pt-3">
+        <div className="flex items-end gap-2">
+          <textarea
+            ref={inputRef}
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type a question…"
+            disabled={streaming}
+            className="min-h-[44px] flex-1 resize-none rounded-2xl border border-stone-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600 disabled:opacity-50"
+          />
+          <button
+            onClick={() => send(input)}
+            disabled={!input.trim() || streaming}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-teal-700 text-white disabled:opacity-40"
+            aria-label="Send"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5">
+              <path d="M3.105 2.288a.75.75 0 0 0-.826.95l1.414 4.925A1.5 1.5 0 0 0 5.135 9.25h6.115a.75.75 0 0 1 0 1.5H5.135a1.5 1.5 0 0 0-1.442 1.087l-1.414 4.926a.75.75 0 0 0 .826.95 28.896 28.896 0 0 0 15.293-7.154.75.75 0 0 0 0-1.115A28.897 28.897 0 0 0 3.105 2.288Z" />
+            </svg>
+          </button>
+        </div>
+        <Disclaimer />
+      </div>
     </main>
-  );
-}
-
-function SelectField<T extends string>({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: T;
-  onChange: (v: T) => void;
-  options: { value: T; label: string }[];
-}) {
-  const id = label.replace(/\s+/g, "-").toLowerCase();
-  return (
-    <div>
-      <label className="text-sm font-medium text-stone-800" htmlFor={id}>
-        {label}
-      </label>
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value as T)}
-        className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 shadow-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-600/20"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </div>
   );
 }

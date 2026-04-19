@@ -7,7 +7,7 @@ const items = [
   { href: "/", label: "Home" },
   { href: "/upload", label: "Upload" },
   { href: "/plan", label: "Today" },
-  { href: "/check-in", label: "Check-in" },
+  { href: "/check-in", label: "Chat" },
 ] as const;
 
 export function BottomNav() {

@@ -34,6 +34,8 @@ export async function POST(req: Request) {
     const parsed = parseJsonFromModelText<unknown>(text);
     const result = carePlanSchema.safeParse(parsed);
     if (!result.success) {
+      console.error("[extract] validation failed:", JSON.stringify(result.error.flatten(), null, 2));
+      console.error("[extract] model output:", text.slice(0, 2000));
       return NextResponse.json(
         { error: "Model output failed validation", details: result.error.flatten() },
         { status: 422 }

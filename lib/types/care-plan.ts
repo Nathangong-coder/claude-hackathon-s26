@@ -4,7 +4,7 @@ export const medicationSchema = z.object({
   name: z.string(),
   dose: z.string().optional(),
   route: z.string().optional(),
-  frequency_text: z.string(),
+  frequency_text: z.string().optional(),
   notes: z.string().optional(),
   source_quote: z.string().optional(),
 });
@@ -27,7 +27,7 @@ export const redFlagSchema = z.object({
 export const checklistItemSchema = z.object({
   id: z.string(),
   label: z.string(),
-  category: z.enum(["medication", "activity", "diet", "follow_up", "education", "other"]),
+  category: z.enum(["medication", "activity", "diet", "follow_up", "education", "other"]).catch("other"),
   done: z.boolean().optional(),
 });
 
