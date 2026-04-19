@@ -24,14 +24,6 @@ const CATEGORY_ICON: Record<string, string> = {
 
 type Tab = "today" | "alerts" | "appointment" | "details";
 
-interface VisitPrep {
-  when: string;
-  with_whom: string;
-  location?: string | null;
-  bring: string[];
-  mention: string[];
-}
-
 function todayLabel() {
   return new Date().toLocaleDateString("en-US", {
     weekday: "short",
@@ -46,8 +38,6 @@ export default function PlanPage() {
   const [dismissedTimes, setDismissedTimes] = useState<Set<string>>(new Set());
   const [scheduledSids, setScheduledSids] = useState<string[]>([]);
   const [tab, setTab] = useState<Tab>("today");
-  const [visitPrep, setVisitPrep] = useState<VisitPrep | null>(null);
-  const [visitPrepLoading, setVisitPrepLoading] = useState(false);
   const cleanupRef = useRef<(() => void) | null>(null);
 
   function handleSmsScheduled(sids: string[]) {
@@ -60,20 +50,6 @@ export default function PlanPage() {
     const saved = localStorage.getItem("reminder_sids");
     if (saved) setScheduledSids(JSON.parse(saved));
   }, []);
-
-  useEffect(() => {
-    if (!plan?.follow_ups?.length) return;
-    setVisitPrepLoading(true);
-    fetch("/api/visit-prep", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ carePlan: plan }),
-    })
-      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then((data) => setVisitPrep(data))
-      .catch(() => {})
-      .finally(() => setVisitPrepLoading(false));
-  }, [plan]);
 
   useEffect(() => {
     const schedule = plan?.medication_schedule_today;
@@ -270,10 +246,11 @@ export default function PlanPage() {
           const watch = plan.red_flags.filter(f => !f.severity_hint || (f.severity_hint !== "emergency" && f.severity_hint !== "urgent"));
           return (
             <div className="flex flex-col gap-5">
+              <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm flex flex-col gap-4">
               {emergency.length > 0 && (
-                <div className="rounded-2xl border border-red-300 bg-red-50 p-5">
+                <div className="rounded-xl border border-red-300 bg-red-50 p-4">
                   <p className="text-base font-semibold uppercase tracking-wide text-red-700">🚨 Call 911</p>
-                  <ul className="mt-4 grid grid-cols-2 gap-3">
+                  <ul className="mt-3 grid grid-cols-2 gap-3">
                     {emergency.map((f, i) => (
                       <li key={i} className="flex flex-col gap-3 rounded-xl border border-red-200 bg-white p-4">
                         <span className="text-3xl">🚨</span>
@@ -285,9 +262,9 @@ export default function PlanPage() {
               )}
 
               {urgent.length > 0 && (
-                <div className="rounded-2xl border border-amber-300 bg-amber-50 p-5">
+                <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
                   <p className="text-base font-semibold uppercase tracking-wide text-amber-700">⚠️ Urgent — Go to ER or Urgent Care</p>
-                  <ul className="mt-4 grid grid-cols-2 gap-3">
+                  <ul className="mt-3 grid grid-cols-2 gap-3">
                     {urgent.map((f, i) => (
                       <li key={i} className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-white p-4">
                         <span className="text-3xl">⚠️</span>
@@ -299,9 +276,9 @@ export default function PlanPage() {
               )}
 
               {watch.length > 0 && (
-                <div className="rounded-2xl border border-stone-200 bg-stone-50 p-5">
+                <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
                   <p className="text-base font-semibold uppercase tracking-wide text-stone-500">ℹ️ Monitor & Contact Doctor</p>
-                  <ul className="mt-4 grid grid-cols-2 gap-3">
+                  <ul className="mt-3 grid grid-cols-2 gap-3">
                     {watch.map((f, i) => (
                       <li key={i} className="flex flex-col gap-3 rounded-xl border border-stone-200 bg-white p-4">
                         <span className="text-3xl">ℹ️</span>
@@ -311,6 +288,14 @@ export default function PlanPage() {
                   </ul>
                 </div>
               )}
+
+              {/* Legend */}
+              <div className="border-t border-stone-100 pt-3 flex gap-4 flex-wrap">
+                <span className="flex items-center gap-1.5 text-xs text-stone-500"><span>🚨</span> Call 911</span>
+                <span className="flex items-center gap-1.5 text-xs text-stone-500"><span>⚠️</span> ER / Urgent care</span>
+                <span className="flex items-center gap-1.5 text-xs text-stone-500"><span>ℹ️</span> Call your doctor</span>
+              </div>
+              </div>
 
               {plan.follow_ups.length > 0 && (
                 <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
@@ -332,32 +317,25 @@ export default function PlanPage() {
         {/* APPOINTMENT */}
         {tab === "appointment" && (
           <div className="flex flex-col gap-5">
-            {visitPrepLoading && !visitPrep && (
-              <p className="text-base text-stone-400">Preparing your visit guide…</p>
-            )}
-            {!visitPrepLoading && !visitPrep && (
-              <p className="text-base text-stone-400">
-                {plan.follow_ups?.length
-                  ? "Could not load visit guide. Check your API key and try refreshing."
-                  : "No follow-up appointments found in your discharge instructions."}
-              </p>
-            )}
-            {visitPrep && (
+            {plan.follow_ups?.length === 0 ? (
+              <p className="text-base text-stone-400">No follow-up appointments found in your discharge instructions.</p>
+            ) : (
               <>
-                <div className="rounded-2xl border border-teal-100 bg-teal-50 p-5">
-                  <p className="text-sm font-semibold uppercase tracking-wide text-teal-600">When &amp; Who</p>
-                  <p className="mt-2 text-2xl font-bold text-teal-800">{visitPrep.when}</p>
-                  <p className="mt-1 text-base text-teal-700">{visitPrep.with_whom}</p>
-                  {visitPrep.location && (
-                    <p className="mt-1 text-sm text-teal-600">{visitPrep.location}</p>
-                  )}
-                </div>
+                {plan.follow_ups.map((f, i) => (
+                  <div key={i} className="rounded-2xl border border-teal-100 bg-teal-50 p-5">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-teal-600">📅 Appointment</p>
+                    <p className="mt-2 text-2xl font-bold text-teal-800">{f.within_text}</p>
+                    <p className="mt-1 text-base text-teal-700">{f.type}{f.provider ? ` — ${f.provider}` : ""}</p>
+                    {f.location && <p className="mt-1 text-sm text-teal-600">📍 {f.location}</p>}
+                    {f.datetime_if_known && <p className="mt-1 text-sm font-medium text-teal-800">🕐 {f.datetime_if_known}</p>}
+                  </div>
+                ))}
 
                 <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
                   <p className="text-sm font-semibold uppercase tracking-wide text-stone-400">What to Bring</p>
                   <ul className="mt-3 grid grid-cols-2 gap-3">
-                    {visitPrep.bring.map((item, i) => (
-                      <li key={i} className="flex items-start gap-2 rounded-xl border border-stone-100 bg-stone-50 p-3 text-sm text-stone-800">
+                    {["Photo ID & insurance card", "This care plan / discharge paperwork", "Current medication bottles", "List of allergies"].map((item) => (
+                      <li key={item} className="flex items-start gap-2 rounded-xl border border-stone-100 bg-stone-50 p-3 text-sm text-stone-800">
                         <span className="mt-0.5 text-teal-600 shrink-0">✓</span>
                         {item}
                       </li>
@@ -368,7 +346,11 @@ export default function PlanPage() {
                 <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
                   <p className="text-sm font-semibold uppercase tracking-wide text-stone-400">What to Mention</p>
                   <ul className="mt-3 space-y-2">
-                    {visitPrep.mention.map((item, i) => (
+                    {[
+                      `Your diagnosis: ${plan.diagnosis_or_reason}`,
+                      ...plan.medications.map((m) => `Medication: ${m.name}${m.dose ? ` ${m.dose}` : ""} — ${m.frequency_text ?? ""}`),
+                      ...plan.red_flags.slice(0, 3).map((f) => `Watch for: ${f.text}`),
+                    ].map((item, i) => (
                       <li key={i} className="flex items-start gap-2 rounded-xl border border-stone-100 bg-stone-50 p-3 text-sm text-stone-800">
                         <span className="mt-0.5 text-teal-600 shrink-0">→</span>
                         {item}

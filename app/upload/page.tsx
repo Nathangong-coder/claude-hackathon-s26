@@ -15,6 +15,11 @@ function fileIcon(file: File) {
   return "📎";
 }
 
+function fileSize(file: File) {
+  const kb = file.size / 1024;
+  return kb < 1024 ? `${Math.round(kb)} KB` : `${(kb / 1024).toFixed(1)} MB`;
+}
+
 async function extractFile(file: File): Promise<string> {
   const isPdf = file.type === "application/pdf";
   const form = new FormData();
@@ -42,6 +47,8 @@ export default function UploadPage() {
   const [loadingMsg, setLoadingMsg] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
+  const [showTextarea, setShowTextarea] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function addFiles(incoming: File[]) {
@@ -72,6 +79,13 @@ export default function UploadPage() {
     setShowCamera(false);
     const file = new File([blob], `capture-${Date.now()}.jpg`, { type: blob.type });
     addFiles([file]);
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const dropped = Array.from(e.dataTransfer.files);
+    addFiles(dropped);
   }
 
   async function loadSample() {
@@ -159,31 +173,36 @@ export default function UploadPage() {
 
       {/* ── REVIEW VIEW ── */}
       {view === "review" && (
-        <main className="flex flex-1 flex-col px-5 pb-8 pt-8">
+        <main className="flex flex-1 flex-col px-5 pb-8 pt-6">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setView("upload")}
-              className="flex size-9 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
+              className="flex size-10 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 text-lg"
               aria-label="Back"
             >
               ←
             </button>
-            <h1 className="text-2xl font-semibold text-stone-900">Files to process</h1>
+            <div>
+              <h1 className="text-2xl font-bold text-stone-900">Review files</h1>
+              <p className="text-sm text-stone-500">{files.length} file{files.length !== 1 ? "s" : ""} ready to process</p>
+            </div>
           </div>
-          <p className="mt-1 text-sm text-stone-500">{files.length} file{files.length !== 1 ? "s" : ""} selected</p>
 
-          <ul className="mt-6 space-y-2">
+          <ul className="mt-6 space-y-3">
             {files.map((file, i) => (
               <li
                 key={`${file.name}-${i}`}
-                className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3 shadow-sm"
+                className="flex items-center gap-4 rounded-2xl border border-stone-200 bg-white px-5 py-4 shadow-sm"
               >
-                <span className="text-xl">{fileIcon(file)}</span>
-                <span className="flex-1 truncate text-sm text-stone-800">{file.name}</span>
+                <span className="text-3xl">{fileIcon(file)}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-base font-medium text-stone-800">{file.name}</p>
+                  <p className="text-sm text-stone-400">{fileSize(file)}</p>
+                </div>
                 <button
                   onClick={() => removeFile(i)}
                   disabled={loading}
-                  className="flex size-7 items-center justify-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700 disabled:opacity-40"
+                  className="flex size-8 items-center justify-center rounded-lg text-stone-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-40 transition-colors"
                   aria-label={`Remove ${file.name}`}
                 >
                   ✕
@@ -192,40 +211,47 @@ export default function UploadPage() {
             ))}
           </ul>
 
-          {error && (
-            <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-950" role="alert">
-              {error}
-            </p>
-          )}
-
-          {loading && loadingMsg && (
-            <p className="mt-4 text-sm text-stone-500">{loadingMsg}</p>
-          )}
-
-          <div className="mt-auto flex flex-col gap-3 pt-8">
-            <button
-              type="button"
-              onClick={processFiles}
-              disabled={loading}
-              className="min-h-12 rounded-2xl bg-teal-700 px-5 font-medium text-white shadow-sm transition hover:bg-teal-800 disabled:opacity-60"
-            >
-              {loading ? loadingMsg || "Working…" : "Extract & review in Today"}
-            </button>
+          {/* Add more */}
+          <div className="mt-4 flex gap-2">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={loading}
-              className="min-h-12 rounded-2xl border border-stone-200 bg-white px-5 font-medium text-stone-800 hover:bg-stone-50 disabled:opacity-60"
+              className="flex-1 rounded-2xl border border-dashed border-stone-300 bg-stone-50 py-3 text-sm font-medium text-stone-600 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 disabled:opacity-60 transition-colors"
             >
-              🖼️ Add more files
+              + Add files
             </button>
             <button
               type="button"
               onClick={() => setShowCamera(true)}
               disabled={loading}
-              className="min-h-12 rounded-2xl border border-teal-200 bg-teal-50 px-5 font-medium text-teal-800 hover:bg-teal-100 disabled:opacity-60"
+              className="flex-1 rounded-2xl border border-dashed border-stone-300 bg-stone-50 py-3 text-sm font-medium text-stone-600 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 disabled:opacity-60 transition-colors"
             >
-              📷 Take a photo
+              📷 Take photo
+            </button>
+          </div>
+
+          {error && (
+            <p className="mt-4 rounded-2xl bg-amber-50 border border-amber-200 px-5 py-4 text-base text-amber-900" role="alert">
+              {error}
+            </p>
+          )}
+
+          {loading && loadingMsg && (
+            <div className="mt-4 flex items-center gap-3 rounded-2xl bg-teal-50 border border-teal-100 px-5 py-4">
+              <span className="text-xl animate-spin">⏳</span>
+              <p className="text-base font-medium text-teal-800">{loadingMsg}</p>
+            </div>
+          )}
+
+          <div className="mt-auto pt-8">
+            <button
+              type="button"
+              onClick={processFiles}
+              disabled={loading}
+              className="w-full min-h-14 rounded-2xl bg-teal-700 px-5 text-lg font-semibold text-white shadow-sm transition hover:bg-teal-800 disabled:opacity-60"
+            >
+              {loading ? loadingMsg || "Working…" : `Extract care plan →`}
             </button>
           </div>
 
@@ -235,67 +261,106 @@ export default function UploadPage() {
 
       {/* ── UPLOAD VIEW ── */}
       {view === "upload" && (
-        <main className="flex flex-1 flex-col px-5 pb-8 pt-8">
-          <h1 className="text-2xl font-semibold text-stone-900">Add discharge instructions</h1>
-          <p className="mt-2 text-sm text-stone-600">
-            Paste text, take a photo, or upload images and PDFs from your discharge paperwork.
-          </p>
+        <main className="flex flex-1 flex-col px-5 pb-8 pt-6">
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-8">
+            <div className="flex size-16 items-center justify-center rounded-2xl bg-teal-50 text-4xl">
+              📋
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-stone-900">Add discharge instructions</h1>
+              <p className="text-base text-stone-500">Photo, PDF, or paste text</p>
+            </div>
+          </div>
 
-          <label className="mt-6 text-sm font-medium text-stone-800" htmlFor="raw">
-            Discharge text
-          </label>
-          <textarea
-            id="raw"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={10}
-            placeholder="Paste discharge instructions here…"
-            className="mt-2 w-full rounded-2xl border border-stone-200 bg-white p-4 text-base text-stone-900 shadow-sm outline-none ring-teal-600/20 placeholder:text-stone-400 focus:border-teal-600 focus:ring-4"
-          />
+          {/* Drag & drop zone */}
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={onDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`flex cursor-pointer flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed px-6 py-14 text-center transition-colors ${
+              dragOver
+                ? "border-teal-400 bg-teal-50"
+                : "border-stone-200 bg-white hover:border-teal-300 hover:bg-teal-50/50"
+            }`}
+          >
+            <span className="text-7xl">📂</span>
+            <div>
+              <p className="text-xl font-semibold text-stone-700">Drop files here</p>
+              <p className="mt-1 text-base text-stone-400">or tap to browse — images & PDFs supported</p>
+            </div>
+            <span className="rounded-xl bg-teal-700 px-6 py-3 text-base font-semibold text-white">
+              Browse files
+            </span>
+          </div>
 
-          {error && (
-            <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-950" role="alert">
-              {error}
-            </p>
-          )}
-
-          <div className="mt-6 flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={extractText}
-              disabled={loading}
-              className="min-h-12 rounded-2xl bg-teal-700 px-5 font-medium text-white shadow-sm transition hover:bg-teal-800 disabled:opacity-60"
-            >
-              {loading ? "Working…" : "Extract & review in Today"}
-            </button>
-
+          {/* Camera + text options */}
+          <div className="mt-5 grid grid-cols-2 gap-4">
             <button
               type="button"
               onClick={() => setShowCamera(true)}
               disabled={loading}
-              className="min-h-12 rounded-2xl border border-teal-200 bg-teal-50 px-5 font-medium text-teal-800 hover:bg-teal-100 disabled:opacity-60"
+              className="flex flex-col items-center gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-7 text-center shadow-sm transition hover:border-teal-200 hover:bg-teal-50 disabled:opacity-60"
             >
-              📷 Use camera
+              <span className="text-4xl">📷</span>
+              <span className="text-base font-semibold text-stone-700">Use camera</span>
+              <span className="text-sm text-stone-400">Take a photo</span>
             </button>
-
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={loading}
-              className="min-h-12 rounded-2xl border border-stone-200 bg-white px-5 font-medium text-stone-800 hover:bg-stone-50 disabled:opacity-60"
+              onClick={() => setShowTextarea((v) => !v)}
+              className="flex flex-col items-center gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-7 text-center shadow-sm transition hover:border-teal-200 hover:bg-teal-50"
             >
-              🖼️ Upload images or PDFs
-            </button>
-
-            <button
-              type="button"
-              onClick={loadSample}
-              disabled={loading}
-              className="min-h-12 rounded-2xl border border-stone-200 bg-white px-5 font-medium text-stone-800 hover:bg-stone-50 disabled:opacity-60"
-            >
-              Load sample discharge
+              <span className="text-4xl">✏️</span>
+              <span className="text-base font-semibold text-stone-700">Paste text</span>
+              <span className="text-sm text-stone-400">Copy from PDF viewer</span>
             </button>
           </div>
+
+          {/* Collapsible textarea */}
+          {showTextarea && (
+            <div className="mt-4 space-y-3">
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                rows={8}
+                placeholder="Paste discharge instructions here…"
+                className="w-full rounded-2xl border border-stone-200 bg-white p-4 text-base text-stone-900 shadow-sm outline-none placeholder:text-stone-400 focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10"
+              />
+              <button
+                type="button"
+                onClick={extractText}
+                disabled={loading || !text.trim()}
+                className="w-full min-h-14 rounded-2xl bg-teal-700 px-5 text-lg font-semibold text-white shadow-sm transition hover:bg-teal-800 disabled:opacity-60"
+              >
+                {loading ? loadingMsg || "Working…" : "Extract from text →"}
+              </button>
+            </div>
+          )}
+
+          {error && (
+            <p className="mt-4 rounded-2xl bg-amber-50 border border-amber-200 px-5 py-4 text-base text-amber-900" role="alert">
+              {error}
+            </p>
+          )}
+
+          {/* Divider */}
+          <div className="mt-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-stone-200" />
+            <span className="text-sm text-stone-400">or try a demo</span>
+            <div className="h-px flex-1 bg-stone-200" />
+          </div>
+
+          {/* Sample */}
+          <button
+            type="button"
+            onClick={loadSample}
+            disabled={loading}
+            className="mt-4 min-h-12 w-full rounded-2xl border border-stone-200 bg-white px-5 text-base font-medium text-stone-700 shadow-sm transition hover:bg-stone-50 disabled:opacity-60"
+          >
+            {loading ? loadingMsg || "Loading…" : "Load sample discharge"}
+          </button>
 
           <Disclaimer />
         </main>
