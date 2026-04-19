@@ -22,7 +22,15 @@ const CATEGORY_ICON: Record<string, string> = {
   other: "✔️",
 };
 
-type Tab = "today" | "alerts" | "details";
+type Tab = "today" | "alerts" | "appointment" | "details";
+
+interface VisitPrep {
+  when: string;
+  with_whom: string;
+  location?: string | null;
+  bring: string[];
+  mention: string[];
+}
 
 function todayLabel() {
   return new Date().toLocaleDateString("en-US", {
@@ -38,6 +46,8 @@ export default function PlanPage() {
   const [dismissedTimes, setDismissedTimes] = useState<Set<string>>(new Set());
   const [scheduledSids, setScheduledSids] = useState<string[]>([]);
   const [tab, setTab] = useState<Tab>("today");
+  const [visitPrep, setVisitPrep] = useState<VisitPrep | null>(null);
+  const [visitPrepLoading, setVisitPrepLoading] = useState(false);
   const cleanupRef = useRef<(() => void) | null>(null);
 
   function handleSmsScheduled(sids: string[]) {
@@ -50,6 +60,20 @@ export default function PlanPage() {
     const saved = localStorage.getItem("reminder_sids");
     if (saved) setScheduledSids(JSON.parse(saved));
   }, []);
+
+  useEffect(() => {
+    if (!plan?.follow_ups?.length) return;
+    setVisitPrepLoading(true);
+    fetch("/api/visit-prep", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ carePlan: plan }),
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((data) => setVisitPrep(data))
+      .catch(() => {})
+      .finally(() => setVisitPrepLoading(false));
+  }, [plan]);
 
   useEffect(() => {
     const schedule = plan?.medication_schedule_today;
@@ -129,6 +153,7 @@ export default function PlanPage() {
   const TABS: { id: Tab; label: string; dot?: boolean }[] = [
     { id: "today", label: "Today" },
     { id: "alerts", label: "Alerts", dot: plan.red_flags.length > 0 || !!activeReminder },
+    { id: "appointment", label: "Appointment" },
     { id: "details", label: "Details" },
   ];
 
@@ -303,6 +328,58 @@ export default function PlanPage() {
             </div>
           );
         })()}
+
+        {/* APPOINTMENT */}
+        {tab === "appointment" && (
+          <div className="flex flex-col gap-5">
+            {visitPrepLoading && !visitPrep && (
+              <p className="text-base text-stone-400">Preparing your visit guide…</p>
+            )}
+            {!visitPrepLoading && !visitPrep && (
+              <p className="text-base text-stone-400">
+                {plan.follow_ups?.length
+                  ? "Could not load visit guide. Check your API key and try refreshing."
+                  : "No follow-up appointments found in your discharge instructions."}
+              </p>
+            )}
+            {visitPrep && (
+              <>
+                <div className="rounded-2xl border border-teal-100 bg-teal-50 p-5">
+                  <p className="text-sm font-semibold uppercase tracking-wide text-teal-600">When &amp; Who</p>
+                  <p className="mt-2 text-2xl font-bold text-teal-800">{visitPrep.when}</p>
+                  <p className="mt-1 text-base text-teal-700">{visitPrep.with_whom}</p>
+                  {visitPrep.location && (
+                    <p className="mt-1 text-sm text-teal-600">{visitPrep.location}</p>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+                  <p className="text-sm font-semibold uppercase tracking-wide text-stone-400">What to Bring</p>
+                  <ul className="mt-3 grid grid-cols-2 gap-3">
+                    {visitPrep.bring.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2 rounded-xl border border-stone-100 bg-stone-50 p-3 text-sm text-stone-800">
+                        <span className="mt-0.5 text-teal-600 shrink-0">✓</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+                  <p className="text-sm font-semibold uppercase tracking-wide text-stone-400">What to Mention</p>
+                  <ul className="mt-3 space-y-2">
+                    {visitPrep.mention.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2 rounded-xl border border-stone-100 bg-stone-50 p-3 text-sm text-stone-800">
+                        <span className="mt-0.5 text-teal-600 shrink-0">→</span>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* DETAILS */}
         {tab === "details" && (
