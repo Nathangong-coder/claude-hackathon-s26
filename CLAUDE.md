@@ -4,22 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A healthcare follow-up app that parses after-visit summary PDFs from medical appointments and surfaces structured, actionable information to patients. **No hospital API integrations** — backend is Python, PDF data is the sole source of truth.
+A healthcare follow-up app that uses a **camera** to capture after-visit summary documents and visual health items (medications, symptoms). Images are processed via OCR for text and Claude's vision API for non-text recognition (pill identification, wound/symptom assessment). Claude interprets the combined data to drive reminders and follow-up actions. **No hospital API integrations** — backend is Python, camera capture is the sole data entry point.
 
 ## Tech Stack Decisions
 
-- **Backend**: Python (PDF parsing, Claude API, business logic)
-- **Frontend**: TBD (likely React or Next.js)
+- **Backend**: Python (OCR, Claude API vision + text, business logic)
+- **Frontend**: TBD (likely React Native or Next.js — camera access required)
+- **OCR**: Tesseract (text extraction from document photos) or equivalent Python OCR library
+- **Vision AI**: Claude vision API for non-text recognition (medication identification, symptom/wound severity assessment)
 - **Translation**: Google Translate API (for multi-language support)
-- **No hospital/EHR API integration** — all data comes from uploaded PDFs
+- **No hospital/EHR API integration** — all data originates from camera captures
 
 ---
 
 ## Feature Architecture (Frontend / Backend split)
 
-### 1. PDF Upload & Parsing
-- **Backend**: Accept PDF upload, extract structured data (return precautions, appointments, medications, wound care, referrals, lifestyle instructions) using a PDF parsing library + Claude API for semantic extraction. Output a normalized JSON schema shared across all features.
-- **Frontend**: File upload UI, loading/processing state, error states for unreadable PDFs.
+### 1. Camera Capture & Document Parsing
+- **Backend**: Two-path processing pipeline for every captured image:
+  1. **Text path**: Run OCR (Tesseract) on the image to extract raw text from the after-visit summary document. Feed OCR output to Claude API to semantically parse into a normalized JSON schema (return precautions, appointments, medications, wound care, referrals, lifestyle instructions).
+  2. **Visual recognition path**: Send the raw image directly to Claude vision API to identify non-text content — pill/medication appearance, visible symptoms (redness, swelling, wound state), or medical devices. Claude returns an identification label, description, and a severity/urgency level (`low` / `moderate` / `high` / `emergency`).
+  Both outputs are merged into the same normalized JSON before being passed downstream to all other features.
+- **Frontend**: In-app camera view with capture button (no gallery picker — live capture only for data freshness). Scan mode selector: "Document" (after-visit summary) vs. "Item" (medication or symptom photo). Processing indicator during OCR + vision analysis. Error states for blurry/unreadable captures with retake prompt.
 
 ### 2. Return Precautions ("Red Flags")
 - **Backend**: Extract red-flag symptoms from parsed PDF. Run through Google Translate API when a non-English language is selected.
@@ -61,7 +66,9 @@ A healthcare follow-up app that parses after-visit summary PDFs from medical app
 
 ## Key Architectural Constraints
 
-- All patient data originates from the uploaded PDF — no external health record lookups.
-- The normalized JSON from PDF parsing is the shared contract between backend features and frontend components.
+- All patient data originates from camera captures — no external health record lookups.
+- The normalized JSON from the OCR + vision pipeline is the shared contract between backend features and frontend components.
+- The two-path pipeline (OCR text + Claude vision) always runs concurrently on every captured image; results are merged before any feature reads them.
+- Severity levels from visual recognition (`low` / `moderate` / `high` / `emergency`) gate notification urgency — `emergency` triggers immediate push regardless of quiet hours.
 - Translation applies to red flags first (highest priority), then other content.
 - Caregiver mode is read-only — no write permissions without explicit patient consent.
