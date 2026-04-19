@@ -56,6 +56,7 @@ export const carePlanSchema = z.object({
 });
 
 export type CarePlan = z.infer<typeof carePlanSchema>;
+export type MedScheduleItem = z.infer<typeof medScheduleItemSchema>;
 
 export const symptomsSchema = z.object({
   pain: z.number().min(0).max(10),

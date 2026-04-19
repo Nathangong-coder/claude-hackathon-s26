@@ -1,17 +1,68 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import type { CarePlan } from "@/lib/types/care-plan";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { CarePlan, MedScheduleItem } from "@/lib/types/care-plan";
 import { loadCarePlan, saveCarePlan } from "@/lib/care-plan-storage";
 import { Disclaimer } from "@/components/Disclaimer";
+import { MedReminderBanner } from "@/components/MedReminderBanner";
+import { SmsReminderSetup } from "@/components/SmsReminderSetup";
+import {
+  getActiveReminder,
+  requestNotificationPermission,
+  scheduleMedReminders,
+} from "@/lib/reminders";
 
 export default function PlanPage() {
   const [plan, setPlan] = useState<CarePlan | null>(null);
+  const [activeReminder, setActiveReminder] = useState<MedScheduleItem | null>(null);
+  const [dismissedTimes, setDismissedTimes] = useState<Set<string>>(new Set());
+  const [scheduledSids, setScheduledSids] = useState<string[]>([]);
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  function handleSmsScheduled(sids: string[]) {
+    setScheduledSids(sids);
+    localStorage.setItem("reminder_sids", JSON.stringify(sids));
+  }
 
   useEffect(() => {
     setPlan(loadCarePlan());
+    const saved = localStorage.getItem("reminder_sids");
+    if (saved) setScheduledSids(JSON.parse(saved));
   }, []);
+
+  // Schedule browser notifications and poll for in-app banner
+  useEffect(() => {
+    const schedule = plan?.medication_schedule_today;
+    if (!schedule?.length) return;
+
+    requestNotificationPermission();
+
+    cleanupRef.current?.();
+    cleanupRef.current = scheduleMedReminders(schedule, (item) => {
+      setActiveReminder(item);
+    });
+
+    function checkBanner() {
+      const reminder = getActiveReminder(schedule!);
+      if (reminder && !dismissedTimes.has(reminder.time_local)) {
+        setActiveReminder(reminder);
+      }
+    }
+
+    checkBanner();
+    const interval = setInterval(checkBanner, 60_000);
+    return () => {
+      clearInterval(interval);
+      cleanupRef.current?.();
+    };
+  }, [plan, dismissedTimes]);
+
+  function dismissReminder() {
+    if (!activeReminder) return;
+    setDismissedTimes((prev) => new Set(prev).add(activeReminder.time_local));
+    setActiveReminder(null);
+  }
 
   const progress = useMemo(() => {
     if (!plan) return { done: 0, total: 0 };
@@ -58,6 +109,12 @@ export default function PlanPage() {
       </h1>
       <p className="mt-2 text-sm text-stone-600">{plan.diagnosis_or_reason}</p>
 
+      {activeReminder ? (
+        <div className="mt-4">
+          <MedReminderBanner reminder={activeReminder} onDismiss={dismissReminder} />
+        </div>
+      ) : null}
+
       {progress.total > 0 ? (
         <div className="mt-5 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between text-sm font-medium text-stone-800">
@@ -93,6 +150,14 @@ export default function PlanPage() {
               </li>
             ))}
           </ul>
+          {scheduledSids.length === 0 && (
+            <div className="mt-3">
+              <SmsReminderSetup
+                schedule={plan.medication_schedule_today}
+                onScheduled={handleSmsScheduled}
+              />
+            </div>
+          )}
         </section>
       ) : null}
 
