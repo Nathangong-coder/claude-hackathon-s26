@@ -17,19 +17,41 @@ export default function PlanPage() {
   const [plan, setPlan] = useState<CarePlan | null>(null);
   const [activeReminder, setActiveReminder] = useState<MedScheduleItem | null>(null);
   const [dismissedTimes, setDismissedTimes] = useState<Set<string>>(new Set());
-  const [scheduledSids, setScheduledSids] = useState<string[]>([]);
+  const [smsRegistered, setSmsRegistered] = useState(false);
+  const [smsPhone, setSmsPhone] = useState("");
+  const [testStatus, setTestStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const cleanupRef = useRef<(() => void) | null>(null);
 
-  function handleSmsScheduled(sids: string[]) {
-    setScheduledSids(sids);
+  function handleSmsScheduled(sids: string[], phone: string) {
+    setSmsRegistered(true);
+    setSmsPhone(phone);
     localStorage.setItem("reminder_sids", JSON.stringify(sids));
+    localStorage.setItem("sms_registered", "true");
+    localStorage.setItem("sms_phone", phone);
   }
 
   useEffect(() => {
     setPlan(loadCarePlan());
-    const saved = localStorage.getItem("reminder_sids");
-    if (saved) setScheduledSids(JSON.parse(saved));
+    if (localStorage.getItem("sms_registered")) setSmsRegistered(true);
+    const savedPhone = localStorage.getItem("sms_phone");
+    if (savedPhone) setSmsPhone(savedPhone);
   }, []);
+
+  async function sendTestSms() {
+    if (!smsPhone || !plan?.medication_schedule_today?.length) return;
+    setTestStatus("sending");
+    const label = plan.medication_schedule_today[0].label;
+    try {
+      const res = await fetch("/api/test-sms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: smsPhone, label }),
+      });
+      setTestStatus(res.ok ? "sent" : "error");
+    } catch {
+      setTestStatus("error");
+    }
+  }
 
   // Schedule browser notifications and poll for in-app banner
   useEffect(() => {
@@ -150,14 +172,38 @@ export default function PlanPage() {
               </li>
             ))}
           </ul>
-          {scheduledSids.length === 0 && (
-            <div className="mt-3">
+          <div className="mt-3">
+            {smsRegistered ? (
+              <div className="rounded-2xl border border-teal-200 bg-teal-50 p-4 text-sm text-teal-900">
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold">You&apos;re registered!</p>
+                  <button
+                    onClick={() => {
+                      setSmsRegistered(false);
+                      localStorage.removeItem("sms_registered");
+                      localStorage.removeItem("reminder_sids");
+                    }}
+                    className="text-xs text-teal-700 underline"
+                  >
+                    Change
+                  </button>
+                </div>
+                <p className="mt-1">You&apos;ll receive a reminder at each medication time.</p>
+                <button
+                  onClick={sendTestSms}
+                  disabled={testStatus === "sending"}
+                  className="mt-2 text-xs text-teal-700 underline disabled:opacity-50"
+                >
+                  {testStatus === "sending" ? "Sending…" : testStatus === "sent" ? "Test sent!" : testStatus === "error" ? "Failed — check console" : "Send test message now"}
+                </button>
+              </div>
+            ) : (
               <SmsReminderSetup
                 schedule={plan.medication_schedule_today}
                 onScheduled={handleSmsScheduled}
               />
-            </div>
-          )}
+            )}
+          </div>
         </section>
       ) : null}
 

@@ -47,24 +47,48 @@ export async function POST(req: NextRequest) {
   const sids: string[] = [];
   const now = new Date();
 
-  for (const item of schedule) {
-    const sendAt = parseTimeToday(item.time_local);
-    if (!sendAt) continue;
-
-    // Twilio requires SendAt to be at least 15 minutes in the future
-    const minutesUntil = (sendAt.getTime() - now.getTime()) / 60_000;
-    if (minutesUntil < 15) continue;
-
-    const msg = await client.messages.create({
+  try {
+    // Send immediate registration confirmation
+    const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
+    const confirmMsg = await client.messages.create({
       to: phone,
-      from: fromNumber,
-      body: `💊 Reminder: ${item.label}`,
-      sendAt: sendAt,
-      scheduleType: "fixed",
-      messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID,
+      ...(messagingServiceSid ? { messagingServiceSid } : { from: fromNumber }),
+      body: `Your medication reminders are set up. You will receive a text at each scheduled medication time today.`,
     });
+    console.log("[twilio] confirmation SID:", confirmMsg.sid, "status:", confirmMsg.status, "error:", confirmMsg.errorCode, confirmMsg.errorMessage);
 
-    sids.push(msg.sid);
+    for (const item of schedule) {
+      const sendAt = parseTimeToday(item.time_local);
+      if (!sendAt) continue;
+
+      const minutesUntil = (sendAt.getTime() - now.getTime()) / 60_000;
+      if (minutesUntil < 0) continue; // already passed
+
+      const msgBody = `💊 Reminder: ${item.label}`;
+
+      if (minutesUntil < 15) {
+        // Too soon to schedule — send immediately
+        const msg = await client.messages.create({
+          to: phone,
+          ...(messagingServiceSid ? { messagingServiceSid } : { from: fromNumber }),
+          body: msgBody,
+        });
+        sids.push(msg.sid);
+      } else {
+        const msg = await client.messages.create({
+          to: phone,
+          from: fromNumber,
+          body: msgBody,
+          sendAt: sendAt,
+          scheduleType: "fixed",
+          messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID,
+        });
+        sids.push(msg.sid);
+      }
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Twilio error";
+    return NextResponse.json({ error: message }, { status: 502 });
   }
 
   return NextResponse.json({ sids });

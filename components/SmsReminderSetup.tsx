@@ -5,7 +5,7 @@ import type { MedScheduleItem } from "@/lib/types/care-plan";
 
 interface Props {
   schedule: MedScheduleItem[];
-  onScheduled: (sids: string[]) => void;
+  onScheduled: (sids: string[], phone: string) => void;
 }
 
 type Status = "idle" | "loading" | "success" | "error";
@@ -15,7 +15,7 @@ export function SmsReminderSetup({ schedule, onScheduled }: Props) {
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setStatus("loading");
     setErrorMsg("");
@@ -28,12 +28,14 @@ export function SmsReminderSetup({ schedule, onScheduled }: Props) {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Failed to schedule reminders");
+        const text = await res.text();
+        let message = "Failed to schedule reminders";
+        try { message = JSON.parse(text).error ?? message; } catch { /* non-JSON body */ }
+        throw new Error(message);
       }
 
       const { sids } = await res.json();
-      onScheduled(sids);
+      onScheduled(sids, phone);
       setStatus("success");
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Something went wrong");
@@ -44,7 +46,8 @@ export function SmsReminderSetup({ schedule, onScheduled }: Props) {
   if (status === "success") {
     return (
       <div className="rounded-2xl border border-teal-200 bg-teal-50 p-4 text-sm text-teal-900">
-        SMS reminders scheduled. You&apos;ll get a text at each medication time.
+        <p className="font-semibold">You&apos;re registered! 🎉</p>
+        <p className="mt-1">A confirmation text was just sent to {phone}. You&apos;ll get a reminder at each medication time today.</p>
       </div>
     );
   }
