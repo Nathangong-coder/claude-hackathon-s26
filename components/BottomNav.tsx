@@ -17,7 +17,11 @@ export function BottomNav() {
       className="fixed top-0 left-0 right-0 z-50 border-b border-stone-200 bg-white/95 backdrop-blur"
       aria-label="Main"
     >
-      <div className="mx-auto flex max-w-lg justify-around gap-1 px-2 py-2">
+      <div className="mx-auto flex max-w-lg items-center gap-1 px-2 py-2">
+        <span className="mr-2 flex items-center gap-1.5 text-sm font-bold text-teal-700 shrink-0">
+          <span className="text-lg">⚕️</span>CarePost
+        </span>
+        <div className="flex flex-1 justify-around gap-1">
         {items.map(({ href, label }) => {
           const active =
             href === "/"
@@ -37,6 +41,7 @@ export function BottomNav() {
             </Link>
           );
         })}
+        </div>
       </div>
     </nav>
   );
