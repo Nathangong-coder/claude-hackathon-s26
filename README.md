@@ -2,7 +2,7 @@
 
 Mobile-first **Python-Based Railway** app that turns discharge text into a **Today** plan and **symptom check-in** with escalation guidance.
 
-# HealthFollow — Project Description
+# CarePost — Project Description
 
 ---
 
