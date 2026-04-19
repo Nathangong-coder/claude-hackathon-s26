@@ -20,6 +20,13 @@ export default function PlanPage() {
   const [smsRegistered, setSmsRegistered] = useState(false);
   const [smsPhone, setSmsPhone] = useState("");
   const [testStatus, setTestStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [visitPrep, setVisitPrep] = useState<{
+    when: string;
+    with_whom: string;
+    location?: string | null;
+    bring: string[];
+    mention: string[];
+  } | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
 
   function handleSmsScheduled(sids: string[], phone: string) {
@@ -52,6 +59,18 @@ export default function PlanPage() {
       setTestStatus("error");
     }
   }
+
+  useEffect(() => {
+    if (!plan || !plan.follow_ups?.length) return;
+    fetch("/api/visit-prep", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ carePlan: plan }),
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setVisitPrep(data); })
+      .catch(() => {});
+  }, [plan]);
 
   // Schedule browser notifications and poll for in-app banner
   useEffect(() => {
@@ -228,6 +247,50 @@ export default function PlanPage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">
+          Next appointment
+        </h2>
+        {visitPrep ? (
+          <div className="mt-3 space-y-3">
+            <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">When &amp; who</p>
+              <p className="mt-1 text-sm font-medium text-stone-900">{visitPrep.when}</p>
+              <p className="text-sm text-stone-700">{visitPrep.with_whom}</p>
+              {visitPrep.location && (
+                <p className="mt-0.5 text-sm text-stone-500">{visitPrep.location}</p>
+              )}
+            </div>
+            <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">What to bring</p>
+              <ul className="mt-2 space-y-1">
+                {visitPrep.bring.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-stone-800">
+                    <span className="mt-0.5 text-teal-600">✓</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">What to mention</p>
+              <ul className="mt-2 space-y-1">
+                {visitPrep.mention.map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-stone-800">
+                    <span className="mt-0.5 text-teal-600">→</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        ) : plan.follow_ups?.length ? (
+          <p className="mt-3 text-sm text-stone-400">Preparing your visit guide…</p>
+        ) : (
+          <p className="mt-3 text-sm text-stone-400">No follow-up appointments found in your discharge instructions.</p>
+        )}
       </section>
 
       <section className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-4">
