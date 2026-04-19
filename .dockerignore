@@ -1,0 +1,8 @@
+node_modules
+.next
+tsconfig.tsbuildinfo
+package-lock.json
+.git
+.env
+.env*.local
+coverage

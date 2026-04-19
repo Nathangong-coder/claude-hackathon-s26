@@ -2,87 +2,80 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
-
-A healthcare follow-up app that uses a **camera** to capture after-visit summary documents and visual health items (medications, symptoms). Images are processed via OCR for text and Claude's vision API for non-text recognition (pill identification, wound/symptom assessment). Claude interprets the combined data to drive reminders and follow-up actions. **No hospital API integrations** — backend is Python, camera capture is the sole data entry point.
-
 ## Running the App
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Set your Anthropic API key
-export ANTHROPIC_API_KEY=sk-...   # Windows: set ANTHROPIC_API_KEY=sk-...
-
-# Start the server
-python app.py
-# → open http://localhost:8000
+npm install
+npm run dev        # → http://localhost:3000
+npm run build      # production build
+npm run lint
 ```
 
-## Tech Stack Decisions
+Required env var: `ANTHROPIC_API_KEY`. Copy `.env.example` to `.env` and fill in values. Twilio vars are optional (only needed for SMS reminders).
 
-- **Backend**: Python (OCR, Claude API vision + text, business logic)
-- **Frontend**: TBD (likely React Native or Next.js — camera access required)
-- **OCR**: Tesseract (text extraction from document photos) or equivalent Python OCR library
-- **Vision AI**: Claude vision API for non-text recognition (medication identification, symptom/wound severity assessment)
-- **Translation**: Google Translate API (for multi-language support)
-- **No hospital/EHR API integration** — all data originates from camera captures
+## Tech Stack
 
----
+- **Next.js 15 App Router** — all pages under `app/`, all API routes under `app/api/`
+- **Tailwind CSS v4** — uses `@tailwindcss/postcss` plugin (not the v3 plugin)
+- **Anthropic SDK** — Claude Haiku by default (`ANTHROPIC_MODEL` env var to override); Sonnet for extraction
+- **Twilio SDK** — SMS medication reminders (optional)
+- **Zod** — runtime validation of all LLM output via schemas in `lib/types/care-plan.ts`
 
-## Feature Architecture (Frontend / Backend split)
+The Python files (`main.py`, `requirements.txt`, `Procfile`) are legacy artifacts. The app runs entirely on Next.js.
 
-### 1. Camera Capture & Document Parsing
-- **Backend**: Two-path processing pipeline for every captured image:
-  1. **Text path**: Run OCR (Tesseract) on the image to extract raw text from the after-visit summary document. Feed OCR output to Claude API to semantically parse into a normalized JSON schema (return precautions, appointments, medications, wound care, referrals, lifestyle instructions).
-  2. **Visual recognition path**: Send the raw image directly to Claude vision API to identify non-text content — pill/medication appearance, visible symptoms (redness, swelling, wound state), or medical devices. Claude returns an identification label, description, and a severity/urgency level (`low` / `moderate` / `high` / `emergency`).
-  Both outputs are merged into the same normalized JSON before being passed downstream to all other features.
-- **Frontend**: In-app camera view with capture button (no gallery picker — live capture only for data freshness). Scan mode selector: "Document" (after-visit summary) vs. "Item" (medication or symptom photo). Processing indicator during OCR + vision analysis. Error states for blurry/unreadable captures with retake prompt.
+## Architecture
 
-### 2. Return Precautions ("Red Flags")
-- **Backend**: Extract red-flag symptoms from parsed PDF. Run through Google Translate API when a non-English language is selected.
-- **Frontend**: High-visibility card (prominent placement, bold/red styling). Language selector that triggers re-translation. "Call 911 / Go to ER / Call doctor" action buttons per symptom.
+### Data Flow
 
-### 3. Follow-Up Appointments
-- **Backend**: Parse appointment dates, locations, providers, and "what to bring" instructions from PDF. Expose as structured list.
-- **Frontend**: Appointment cards with date, provider, location, and checklist of what to bring (fasting requirements, prior records). Calendar export option.
+1. User pastes discharge text or captures an image on `/upload`
+2. Images go to `POST /api/extract-image` (Claude vision → raw text), then text goes to `POST /api/extract` (Claude Sonnet → structured `CarePlan` JSON)
+3. `CarePlan` is saved to `localStorage` (key: `pdc-care-plan-v1`) via `lib/care-plan-storage.ts`
+4. `/plan` reads from localStorage to render the daily checklist, alerts, and details
+5. `/check-in` streams chat responses from `POST /api/chat` with the care plan injected as system context
 
-### 4. Wound / Device Care
-- **Backend**: Extract step-by-step wound/device care instructions (dressing changes, drains, ostomy, splints).
-- **Frontend**: Step-by-step checklist UI, photo-friendly layout. Checkboxes persist locally per session.
+The `CarePlan` Zod schema in `lib/types/care-plan.ts` is the contract between all API routes and pages — every route validates LLM output against it before responding.
 
-### 5. Referrals
-- **Backend**: Extract specialist referrals with urgency, reason, and scheduling status.
-- **Frontend**: Referral cards showing specialist type, reason, urgency level, and whether patient still needs to schedule.
+### Key Files
 
-### 6. Symptom & Recovery Tracking
-- **Backend**: Define trackable symptom dimensions from the PDF (pain, breathing, swelling, etc.). Store daily check-in data. Detect trends.
-- **Frontend**: Daily slider/checkbox check-in UI. Trend visualization (simple chart). Optional share-with-care-team export.
+| File | Purpose |
+|---|---|
+| `lib/types/care-plan.ts` | All Zod schemas — change here first when modifying data shape |
+| `lib/llm.ts` | `getAnthropic()`, `getModel()`, `completeJsonText()`, `parseJsonFromModelText()` |
+| `lib/prompts/extract.ts` | System prompt + user message builder for discharge extraction |
+| `lib/prompts/checkin.ts` | System prompt + user message builder for symptom triage |
+| `lib/care-plan-storage.ts` | localStorage read/write; saving clears old reminder state |
+| `lib/reminders.ts` | Browser Notification API scheduling; `getActiveReminder()` drives the med banner |
+| `lib/demo-checkin.ts` | Rule-based triage fallback (no LLM) used when API is unavailable |
+| `fixtures/sample-care-plan.json` | Demo care plan loaded by `GET /api/sample-care-plan` |
 
-### 7. Medications & Pharmacy
-- **Backend**: Extract current medication list from PDF, reconcile against discharge instructions. Extract pharmacy info, copay notes, OTC/supplement guidance.
-- **Frontend**: Medication reconciliation list ("these are the meds you should have now — flag anything different"). Pharmacy card with pickup expectations and copay info. OTC/supplement allowed/discouraged flags.
+### API Routes
 
-### 8. Lifestyle & Education
-- **Backend**: Extract diet restrictions (fluid/sodium/renal-cardiac), activity limits (walking, lifting, driving, return-to-work), substance use guidance. Surface relevant education content tied to diagnosis.
-- **Frontend**: Structured sections per category. Activity restriction cards with specific limits (not generic). Linked education snippets (articles/videos) by diagnosis keyword.
+| Route | Method | Purpose |
+|---|---|---|
+| `/api/extract` | POST | Raw discharge text → `CarePlan` (Claude Sonnet) |
+| `/api/extract-image` | POST | Image (FormData) → raw text (Claude Haiku vision) |
+| `/api/chat` | POST | Streaming chat with care plan context injected |
+| `/api/check-in` | POST | Symptoms + red flags → triage tier (`home`/`provider`/`urgent`) |
+| `/api/schedule-reminders` | POST | Schedule Twilio SMS for med times today |
+| `/api/cancel-reminders` | POST | Cancel scheduled Twilio message SIDs |
+| `/api/visit-prep` | POST | `CarePlan` → appointment prep guide (what to bring/mention) |
+| `/api/sample-care-plan` | GET | Returns `fixtures/sample-care-plan.json` |
+| `/api/health` | GET | `{ ok: true }` |
 
-### 9. Logistics & Accessibility
-- **Backend**: Extract transportation/parking notes for follow-up visits. Support caregiver delegation (read-only mode with consent flag).
-- **Frontend**: Large text / screen reader support. Multi-language content (Google Translate). Caregiver mode toggle (read-only delegated view).
+All routes return `503` when `ANTHROPIC_API_KEY` is missing. `/api/check-in` falls back to `demoCheckIn()` on 503.
 
-### 10. Notifications & Engagement
-- **Backend**: Schedule medication reminders and appointment nudges. Respect quiet hours and frequency caps. Support push / SMS / email channels.
-- **Frontend**: Notification preferences UI (channel choice, quiet hours). Low-friction check-in prompts ("Did you take your morning meds?" — one-tap). Avoid guilt-heavy copy.
+### Error Handling Pattern
 
----
+API routes return:
+- `400` — missing/invalid input
+- `422` — LLM returned output that failed Zod validation (logs raw model output)
+- `502` — Claude API error
+- `503` — `ANTHROPIC_API_KEY` not set
 
-## Key Architectural Constraints
+### LLM Output Parsing
 
-- All patient data originates from camera captures — no external health record lookups.
-- The normalized JSON from the OCR + vision pipeline is the shared contract between backend features and frontend components.
-- The two-path pipeline (OCR text + Claude vision) always runs concurrently on every captured image; results are merged before any feature reads them.
-- Severity levels from visual recognition (`low` / `moderate` / `high` / `emergency`) gate notification urgency — `emergency` triggers immediate push regardless of quiet hours.
-- Translation applies to red flags first (highest priority), then other content.
-- Caregiver mode is read-only — no write permissions without explicit patient consent.
+`parseJsonFromModelText()` in `lib/llm.ts` strips markdown code fences before `JSON.parse`. Every extraction route wraps the parsed object in the relevant Zod schema's `.parse()` — validation errors surface as 422.
+
+## Deployment
+
+Deployed to Railway. `nixpacks.toml` sets the install command to `npm install` (not `npm ci`) to ensure Linux-native binaries for `@tailwindcss/oxide` are resolved correctly. `package-lock.json` and `tsconfig.tsbuildinfo` are excluded from the Docker build context via `.dockerignore`.
