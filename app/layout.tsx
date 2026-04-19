@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { BottomNav } from "@/components/BottomNav";
+import { GoogleTranslate } from "@/components/GoogleTranslate";
 
 export const metadata: Metadata = {
   title: "Post-Discharge Companion",
@@ -26,6 +27,7 @@ export default function RootLayout({
           {children}
         </div>
         <BottomNav />
+        <GoogleTranslate />
       </body>
     </html>
   );
