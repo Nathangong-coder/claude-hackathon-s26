@@ -27,6 +27,7 @@ export default function PlanPage() {
     bring: string[];
     mention: string[];
   } | null>(null);
+  const [visitPrepLoading, setVisitPrepLoading] = useState(false);
   const cleanupRef = useRef<(() => void) | null>(null);
 
   function handleSmsScheduled(sids: string[], phone: string) {
@@ -62,14 +63,16 @@ export default function PlanPage() {
 
   useEffect(() => {
     if (!plan || !plan.follow_ups?.length) return;
+    setVisitPrepLoading(true);
     fetch("/api/visit-prep", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ carePlan: plan }),
     })
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (data) setVisitPrep(data); })
-      .catch(() => {});
+      .then((r) => r.ok ? r.json() : Promise.reject(r.status))
+      .then((data) => setVisitPrep(data))
+      .catch(() => setVisitPrepLoading(false))
+      .finally(() => setVisitPrepLoading(false));
   }, [plan]);
 
   // Schedule browser notifications and poll for in-app banner
@@ -287,7 +290,7 @@ export default function PlanPage() {
             </div>
           </div>
         ) : plan.follow_ups?.length ? (
-          <p className="mt-3 text-sm text-stone-400">Preparing your visit guide…</p>
+          <p className="mt-3 text-sm text-stone-400">{visitPrepLoading ? "Preparing your visit guide…" : "Could not load visit guide. Check your API key and try refreshing."}</p>
         ) : (
           <p className="mt-3 text-sm text-stone-400">No follow-up appointments found in your discharge instructions.</p>
         )}

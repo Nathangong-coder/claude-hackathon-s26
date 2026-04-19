@@ -22,25 +22,39 @@ Be concrete and specific to this patient's situation. The "mention" list should 
 }
 
 export async function POST(req: NextRequest) {
+  console.log("[visit-prep] request received");
   if (!getAnthropic()) {
+    console.log("[visit-prep] no API key");
     return NextResponse.json({ error: "API not configured" }, { status: 503 });
   }
 
-  const { carePlan } = await req.json();
+  let carePlan: unknown;
+  try {
+    const body = await req.json();
+    carePlan = body.carePlan;
+  } catch {
+    console.log("[visit-prep] failed to parse body");
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
   if (!carePlan) {
+    console.log("[visit-prep] no carePlan in body");
     return NextResponse.json({ error: "carePlan is required" }, { status: 400 });
   }
 
   try {
+    console.log("[visit-prep] calling LLM");
     const text = await completeJsonText({
       system: SYSTEM,
       user: buildUserMessage(carePlan),
       maxTokens: 1024,
     });
+    console.log("[visit-prep] LLM response:", text.slice(0, 200));
     const parsed = parseJsonFromModelText(text);
     return NextResponse.json(parsed);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed";
+    console.error("[visit-prep] error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
