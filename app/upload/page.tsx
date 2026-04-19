@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { CarePlan } from "@/lib/types/care-plan";
 import { saveCarePlan } from "@/lib/care-plan-storage";
 import { Disclaimer } from "@/components/Disclaimer";
@@ -11,6 +11,7 @@ export default function UploadPage() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadSample() {
     setError(null);
@@ -59,6 +60,52 @@ export default function UploadPage() {
     }
   }
 
+  async function handleImageFile(file: File) {
+    setError(null);
+    setLoading(true);
+    try {
+      // Step 1: extract raw text from image
+      const form = new FormData();
+      form.append("image", file);
+      const visionRes = await fetch("/api/extract-image", {
+        method: "POST",
+        body: form,
+      });
+      const visionData = await visionRes.json();
+      if (!visionRes.ok) throw new Error(visionData.error ?? "Image extraction failed");
+
+      const raw_text: string = visionData.raw_text;
+      if (!raw_text) throw new Error("No text found in image");
+
+      // Step 2: pipe raw text into existing extract flow
+      const extractRes = await fetch("/api/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ raw_text }),
+      });
+      const extractData = await extractRes.json();
+      if (!extractRes.ok) {
+        throw new Error(
+          extractData.hint
+            ? `${extractData.error ?? "Request failed"} — ${extractData.hint}`
+            : extractData.error ?? "Extraction failed"
+        );
+      }
+      saveCarePlan(extractData.care_plan as CarePlan);
+      router.push("/plan");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) handleImageFile(file);
+    e.target.value = "";
+  }
+
   return (
     <main className="flex flex-1 flex-col px-5 pb-8 pt-8">
       <h1 className="text-2xl font-semibold text-stone-900">
@@ -99,6 +146,25 @@ export default function UploadPage() {
         >
           {loading ? "Working…" : "Extract & review in Today"}
         </button>
+
+        {/* Camera / image upload */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={onFileChange}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={loading}
+          className="min-h-12 rounded-2xl border border-teal-200 bg-teal-50 px-5 font-medium text-teal-800 hover:bg-teal-100 disabled:opacity-60"
+        >
+          {loading ? "Working…" : "📷 Take photo or upload image"}
+        </button>
+
         <button
           type="button"
           onClick={loadSample}
