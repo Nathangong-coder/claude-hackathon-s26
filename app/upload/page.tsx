@@ -66,10 +66,15 @@ export default function UploadPage() {
     setShowCamera(false);
     setError(null);
     setLoading(true);
+    const isPdf = blob.type === "application/pdf";
     try {
       const form = new FormData();
-      form.append("image", blob, "capture.jpg");
-      const visionRes = await fetch("/api/extract-image", { method: "POST", body: form });
+      if (isPdf) {
+        form.append("pdf", blob, "discharge.pdf");
+      } else {
+        form.append("image", blob, "capture.jpg");
+      }
+      const visionRes = await fetch(isPdf ? "/api/extract-pdf" : "/api/extract-image", { method: "POST", body: form });
       const visionData = await visionRes.json();
       if (!visionRes.ok) throw new Error(visionData.error ?? "Image extraction failed");
 
@@ -165,7 +170,7 @@ export default function UploadPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,application/pdf"
             className="hidden"
             onChange={onFileChange}
           />
@@ -175,7 +180,7 @@ export default function UploadPage() {
             disabled={loading}
             className="min-h-12 rounded-2xl border border-stone-200 bg-white px-5 font-medium text-stone-800 hover:bg-stone-50 disabled:opacity-60"
           >
-            🖼️ Upload image
+            🖼️ Upload image or PDF
           </button>
 
           <button
