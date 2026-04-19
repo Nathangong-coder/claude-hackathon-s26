@@ -21,8 +21,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-dvh antialiased">
-        <div className="mx-auto flex min-h-dvh max-w-lg flex-col pb-24">
+      <body className="min-h-dvh antialiased" suppressHydrationWarning>
+        <div className="mx-auto flex min-h-dvh max-w-lg flex-col pt-16">
           {children}
         </div>
         <BottomNav />

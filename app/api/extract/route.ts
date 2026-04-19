@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     const text = await completeJsonText({
       system: EXTRACT_SYSTEM,
       user: buildExtractUserMessage(raw),
-      maxTokens: 4096,
+      maxTokens: 8192,
     });
     const parsed = parseJsonFromModelText<unknown>(text);
     const result = carePlanSchema.safeParse(parsed);

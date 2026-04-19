@@ -67,7 +67,7 @@
     }
   ],
   "medication_schedule_today": [
-    { "time_local": "8:00 AM", "label": "Amoxicillin 500 mg", "med_id": "amox-1" },
+    { "time_local": "1:05 PM", "label": "Amoxicillin 500 mg", "med_id": "amox-1" },
     { "time_local": "8:00 PM", "label": "Amoxicillin 500 mg", "med_id": "amox-2" }
   ]
 }

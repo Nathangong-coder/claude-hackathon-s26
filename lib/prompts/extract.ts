@@ -23,7 +23,7 @@ Return a single JSON object with this exact shape (keys required):
   "diet": { "do": string[], "avoid": string[] },
   "plain_language_summary": string (short, patient-friendly),
   "todays_checklist": [{ "id": string, "label": string, "category": "medication"|"activity"|"diet"|"follow_up"|"education"|"other", "done"?: boolean }],
-  "medication_schedule_today": [{ "time_local": string, "label": string, "med_id"?: string }] (optional; reasonable times if frequencies are clear, else omit or empty)
+  "medication_schedule_today": [{ "time_local": string, "label": string }] (REQUIRED when frequencies are clear; infer times: "twice daily"→["8:00 AM","8:00 PM"], "every 6 hours"→["8:00 AM","2:00 PM","8:00 PM","2:00 AM"]; keep label short)
 }
 
 Use stable ids like "check-1", "check-2" for checklist items.`;
