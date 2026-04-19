@@ -22,7 +22,7 @@ Both groups share the same bottleneck: the information exists, but it's locked i
 
 ## Our Solution: A Camera as the Sole Entry Point
 
-HealthFollow asks one thing of the patient or their caregiver: **take a photo**. No app login, no manual data entry, no EHR integration, no hospital portal. The camera is the entire intake flow.
+CarePost asks one thing of the patient or their caregiver: **take a photo**. No app login, no manual data entry, no EHR integration, no hospital portal. The camera is the entire intake flow.
 
 From that single photo, the app extracts, interprets, translates, and organizes everything the patient needs — then delivers it in a format built for their actual situation: large text, plain language, their own language, with urgent items prominently surfaced.
 
@@ -115,17 +115,17 @@ Camera images of medical documents, medication lists, and symptom data are among
 
 ## Empowering, Not Replacing
 
-HealthFollow is not a clinical tool. It does not diagnose. It does not prescribe. It does not replace the doctor, the nurse, or the pharmacist.
+CarePost is not a clinical tool. It does not diagnose. It does not prescribe. It does not replace the doctor, the nurse, or the pharmacist.
 
 What it does is close the gap between what the clinical team explained and what the patient actually retains and acts on after they leave.
 
-**The nurse still gives the discharge briefing.** HealthFollow lets the patient review it again at home, in their own language, at their own pace, without feeling embarrassed to ask a question they forgot.
+**The nurse still gives the discharge briefing.** CarePost lets the patient review it again at home, in their own language, at their own pace, without feeling embarrassed to ask a question they forgot.
 
-**The pharmacist still counsels on medications.** HealthFollow surfaces the medication list so the patient knows what to ask for and what to flag.
+**The pharmacist still counsels on medications.** CarePost surfaces the medication list so the patient knows what to ask for and what to flag.
 
-**The doctor still sets the follow-up appointment.** HealthFollow reminds the patient when it's coming, what to bring, and what fasting or prep requirements apply.
+**The doctor still sets the follow-up appointment.** CarePost reminds the patient when it's coming, what to bring, and what fasting or prep requirements apply.
 
-The human care team provides the knowledge. HealthFollow is the scaffolding that helps a nervous, exhausted, or overwhelmed patient actually use it.
+The human care team provides the knowledge. CarePost is the scaffolding that helps a nervous, exhausted, or overwhelmed patient actually use it.
 
 For elderly patients who struggle with technology, the camera-first interface is deliberately simple: open the app, point at the paper, tap once. No forms, no typing, no accounts to remember.
 
