@@ -155,56 +155,53 @@ export default function PlanPage() {
   ];
 
   return (
-    <main className="flex flex-1 overflow-hidden -mx-[calc((100vw-100%)/2)] w-screen">
-      {/* Left sidebar */}
-      <div className="flex w-[30%] shrink-0 flex-col bg-teal-700 px-6 py-8">
-        <p className="text-sm font-medium uppercase tracking-wide text-teal-300">{todayLabel()}</p>
-        <h1 className="mt-4 text-4xl font-bold leading-tight text-white">Your Plan</h1>
-        <p className="mt-4 text-lg leading-snug text-teal-100">{plan.diagnosis_or_reason}</p>
-
+    <main className="flex flex-1 flex-col overflow-hidden">
+      {/* Top header — teal background */}
+      <div className="bg-teal-700 px-5 py-5">
+        <p className="text-xs font-medium uppercase tracking-wide text-teal-300">{todayLabel()}</p>
+        <h1 className="mt-1 text-2xl font-bold leading-tight text-white">Your Plan</h1>
+        <p className="mt-1 text-sm leading-snug text-teal-100 line-clamp-2">{plan.diagnosis_or_reason}</p>
         {progress.total > 0 && (
-          <div className="mt-8 rounded-2xl bg-teal-600 p-5 text-center">
-            <span className="text-5xl font-bold text-white leading-none">{progress.done}</span>
-            <span className="text-2xl font-bold text-teal-300">/{progress.total}</span>
-            <p className="mt-2 text-sm text-teal-300">tasks done</p>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-teal-500">
+          <div className="mt-3 flex items-center gap-3">
+            <span className="text-xl font-bold text-white">{progress.done}<span className="text-base font-semibold text-teal-300">/{progress.total}</span></span>
+            <div className="flex-1 h-2 overflow-hidden rounded-full bg-teal-500">
               <div
                 className="h-full rounded-full bg-white transition-all duration-500"
                 style={{ width: `${Math.min(100, (progress.done / progress.total) * 100)}%` }}
               />
             </div>
+            <span className="text-xs text-teal-300">done</span>
           </div>
         )}
-
-        {/* Tab buttons — vertical */}
-        <div className="mt-auto flex flex-col gap-2 pt-8">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`relative rounded-xl px-4 py-3 text-left text-base font-semibold transition-colors ${
-                tab === t.id
-                  ? "bg-white text-teal-700"
-                  : "text-teal-200 hover:bg-teal-600"
-              }`}
-            >
-              {t.label}
-              {t.dot && tab !== t.id && (
-                <span className="absolute right-3 top-3 size-2.5 rounded-full bg-amber-400" />
-              )}
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* Right content panel */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {activeReminder && (
-          <div className="px-4 pt-4">
-            <MedReminderBanner reminder={activeReminder} onDismiss={dismissReminder} />
-          </div>
-        )}
-        <div className="flex-1 overflow-y-auto px-4 pb-6 pt-4">
+      {/* Horizontal tab bar */}
+      <div className="flex border-b border-stone-200 bg-white">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`relative flex-1 py-3 text-xs font-semibold transition-colors ${
+              tab === t.id
+                ? "border-b-2 border-teal-700 text-teal-700"
+                : "text-stone-500 hover:text-stone-700"
+            }`}
+          >
+            {t.label}
+            {t.dot && tab !== t.id && (
+              <span className="absolute right-2 top-2 size-2 rounded-full bg-amber-400" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Content area */}
+      {activeReminder && (
+        <div className="px-4 pt-4">
+          <MedReminderBanner reminder={activeReminder} onDismiss={dismissReminder} />
+        </div>
+      )}
+      <div className="flex-1 overflow-y-auto px-4 pb-6 pt-4">
 
         {/* TODAY */}
         {tab === "today" && (
@@ -418,7 +415,7 @@ export default function PlanPage() {
               <p className="mt-3 text-base leading-relaxed text-stone-700">{plan.plain_language_summary}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-4">
               <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
                 <p className="text-base font-semibold uppercase tracking-wide text-stone-400">🚶 Activity</p>
                 <p className="mt-4 text-sm font-bold text-teal-700">Do</p>
@@ -456,7 +453,6 @@ export default function PlanPage() {
           </div>
         )}
         </div>
-      </div>
     </main>
   );
 }

@@ -40,7 +40,7 @@ export function GoogleTranslate() {
         strategy="lazyOnload"
       />
       <div
-        className="fixed right-3 top-3 z-50 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-md"
+        className="fixed right-3 top-[68px] z-40 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-md"
         id="google_translate_element"
       />
     </>

@@ -6,7 +6,15 @@
       "Bash(pip install *)",
       "Bash(python app.py)",
       "Bash(curl -s http://localhost:8000)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000)",
+      "Bash(python skills/ui-ux-pro-max/scripts/search.py \"healthcare medical discharge patient recovery mobile\" --design-system -p \"Post-Discharge Companion\")",
+      "Bash(python *)",
+      "Bash(npm run *)",
+      "Bash(npx next *)",
+      "Bash(node_modules/.bin/next lint *)",
+      "Bash(npm install *)",
+      "Bash(node -e \"const ts = require\\('typescript'\\); const fs = require\\('fs'\\); const files = ['app/plan/page.tsx','app/page.tsx','app/upload/page.tsx']; files.forEach\\(f => { try { const content = fs.readFileSync\\(f,'utf8'\\); console.log\\(f + ': OK \\(' + content.split\\('\\\\n'\\).length + ' lines\\)'\\); } catch\\(e\\) { console.log\\(f + ': ERROR ' + e.message\\); } }\\);\")",
+      "Bash(./node_modules/.bin/next lint *)"
     ]
   }
 }

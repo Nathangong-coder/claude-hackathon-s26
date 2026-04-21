@@ -35,20 +35,21 @@ export default function HomePage() {
         Turn confusing discharge paperwork into a clear daily plan — with medication reminders and symptom check-ins.
       </p>
 
-      <div className="mt-10 grid grid-cols-3 gap-4">
+      <div className="mt-10 flex flex-col gap-3">
         {FEATURES.map(({ href, icon, title, description }) => (
           <Link
             key={href}
             href={href}
-            className="flex flex-col items-center gap-4 rounded-3xl border border-stone-200 bg-white px-4 py-7 shadow-sm transition hover:shadow-md hover:border-teal-200 text-center"
+            className="flex items-center gap-4 rounded-2xl border border-stone-200 bg-white px-5 py-5 shadow-sm transition hover:shadow-md hover:border-teal-200"
           >
-            <span className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-4xl">
+            <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-3xl">
               {icon}
             </span>
-            <div>
-              <p className="text-xl font-bold text-stone-900">{title}</p>
-              <p className="mt-1 text-sm text-stone-500">{description}</p>
+            <div className="min-w-0">
+              <p className="text-lg font-bold text-stone-900">{title}</p>
+              <p className="mt-0.5 text-sm text-stone-500">{description}</p>
             </div>
+            <span className="ml-auto shrink-0 text-stone-300 text-lg">›</span>
           </Link>
         ))}
       </div>

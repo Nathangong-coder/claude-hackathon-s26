@@ -263,13 +263,13 @@ export default function UploadPage() {
       {view === "upload" && (
         <main className="flex flex-1 flex-col px-5 pb-8 pt-6">
           {/* Header */}
-          <div className="flex items-center gap-4 mb-8">
-            <div className="flex size-16 items-center justify-center rounded-2xl bg-teal-50 text-4xl">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-2xl">
               📋
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-stone-900">Add discharge instructions</h1>
-              <p className="text-base text-stone-500">Photo, PDF, or paste text</p>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold text-stone-900 leading-tight">Add discharge instructions</h1>
+              <p className="text-sm text-stone-500">Photo, PDF, or paste text</p>
             </div>
           </div>
 
